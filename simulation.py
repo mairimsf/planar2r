@@ -42,6 +42,8 @@ if __name__ == '__main__':
     state = np.empty((len(t), 2, len(theta)))  # state values
     errors = np.empty((len(t), 2, len(theta)))  # error values
     path = np.empty((len(t), 2, 2))
+    tau_c_v=np.zeros([2])  # previous tau_c
+    TVU=[] #control variaton
 
     # simulation with Euler integration
     for i, _t in enumerate(t):
@@ -57,7 +59,9 @@ if __name__ == '__main__':
         # note 1: here array.[:, None] adds one dimension (2,) -> (2, 1)
         # note 2: the array.squeeze() removes the extra dimension (2, 1) -> (2,)
         tau_c = (k_p @ theta_e[:, None] + k_d @ dot_theta_e[:, None]).squeeze()
-
+        # TVU - metric 
+        TVU.append(np.abs(np.sum(tau_c-tau_c_v)))
+        tau_c_v = tau_c
         # simulation step
         dot2_theta = robot.forward_dynamics(theta, dot_theta, tau_c)
         theta = theta + dot_theta * dt
@@ -73,7 +77,36 @@ if __name__ == '__main__':
 
         # save errors
         errors[i][0, :] = theta_e
-        errors[i][0, :] = dot_theta_e
+        errors[i][1, :] = dot_theta_e
+        
+    #MSE - Position
+    mse_theta1 = np.square(errors[:, 0, 0]).mean()
+    mse_theta2 = np.square(errors[:, 0, 1]).mean()
+    
+    #MSE - Velocity
+    mse_dot_theta1 = np.square(errors[:, 1, 0]).mean()
+    mse_dot_theta2 = np.square(errors[:, 1, 1]).mean()
+    
+    #IAE - Position
+    iae_theta1 = np.sum(np.abs(errors[:, 0, 0]))
+    iae_theta2 = np.sum(np.abs(errors[:, 0, 1]))
+    
+    #IAE - Velocity
+    iae_dot_theta1 = np.sum(np.abs(errors[:, 1, 0]))
+    iae_dot_theta2 = np.sum(np.abs(errors[:, 1, 1]))
+        
+        
+    #ISE - Position
+    ise_theta1 = np.sum(np.square(errors[:, 0, 0]))
+    ise_theta2 = np.sum(np.square(errors[:, 0, 1]))
+    
+    #ISE - Velocity
+    ise_dot_theta1 = np.sum(np.square(errors[:, 1, 0]))
+    ise_dot_theta2 = np.sum(np.square(errors[:, 1, 1]))
+        
+    #TVU - Control Total Variation
+    TVU=np.array(TVU)
+    TVU_total=np.sum(TVU)
 
     # plot sim results (position)
     plt.style.use('bmh')
@@ -105,3 +138,5 @@ if __name__ == '__main__':
     ax4.legend()
     ax4.set_title('Path planning vs. real path')
     fig4.show()
+    
+    
